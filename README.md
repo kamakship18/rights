@@ -15,6 +15,8 @@
 |     2 | Execution    | Filing without manual effort | **Direct-File**     |
 |     3 | Persistence  | Accountability loop          | **Persistence Bot** |
 
+**New to the repo?** Read the full handoff for architecture, envs, and what is real vs. dev-only: [docs/COLLABORATOR_CONTEXT.md](docs/COLLABORATOR_CONTEXT.md).
+
 ## Tech Stack
 
 - **Web**: Next.js 14 (App Router) + TypeScript + Tailwind CSS + Framer Motion
