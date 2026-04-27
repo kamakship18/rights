@@ -7,6 +7,8 @@ import type {
   IntentDto,
   IntentPreview,
   CreateGrievanceDto,
+  UpdateProfileDto,
+  CommunityGrievance,
 } from '@repo/shared';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -128,6 +130,32 @@ export function createApiClient(getToken: GetTokenFn) {
     deleteContact(id: string) {
       return request<void>('DELETE', `/sos/contacts/${id}`, getToken);
     },
+
+    /* ── Grievance update (user timeline note) ───────── */
+
+    addGrievanceUpdate(id: string, message: string) {
+      return request<NoticeEvent>('POST', `/grievance/${id}/update`, getToken, { message });
+    },
+
+    /* ── Profile ─────────────────────────────────────── */
+
+    getProfile() {
+      return request<UserProfile>('GET', '/profile', getToken);
+    },
+
+    updateProfile(dto: UpdateProfileDto) {
+      return request<UserProfile>('PATCH', '/profile', getToken, dto);
+    },
+
+    /* ── Community ───────────────────────────────────── */
+
+    listCommunityIssues() {
+      return request<CommunityGrievance[]>('GET', '/community', getToken);
+    },
+
+    listCommunityByPin(pin: string) {
+      return request<CommunityGrievance[]>('GET', `/community/pin/${pin}`, getToken);
+    },
   };
 }
 
@@ -135,9 +163,12 @@ export function createApiClient(getToken: GetTokenFn) {
 
 export interface NoticeEvent {
   id: string;
-  grievanceId: string;
+  grievanceId: string | null;
+  userId?: string | null;
   kind: string;
   channel: string;
+  source: 'SYSTEM' | 'OFFICER' | 'USER';
+  message: string | null;
   payload: Record<string, unknown>;
   sentAt: string;
 }
@@ -216,3 +247,15 @@ export interface EmergencyContact {
   phone: string;
   relation: string | null;
 }
+
+export interface UserProfile {
+  id: string;
+  clerkId: string;
+  fullName: string;
+  phone: string | null;
+  location: string | null;
+  primaryPin: string | null;
+  profileComplete: boolean;
+}
+
+export { CommunityGrievance };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -26,6 +26,19 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<Filter>('all');
 
   const api = useMemo(() => createApiClient(getToken), [getToken]);
+
+  // Track the last user ID we loaded data for — wipe state immediately if it changes
+  const loadedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentId = user?.id ?? null;
+    if (loadedForRef.current !== null && loadedForRef.current !== currentId) {
+      // User switched — clear stale data before the next fetch completes
+      setItems([]);
+      setError('');
+      setFilter('all');
+    }
+    loadedForRef.current = currentId;
+  }, [user?.id]);
 
   const fetchAll = useCallback(async () => {
     if (!isSignedIn) {

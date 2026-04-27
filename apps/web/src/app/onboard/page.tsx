@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -18,10 +18,21 @@ const s = strings.onboard;
 
 export default function OnboardPage() {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const api = createApiClient(getToken);
 
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Wipe contacts immediately when signed-in user changes
+  const loadedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentId = user?.id ?? null;
+    if (loadedForRef.current !== null && loadedForRef.current !== currentId) {
+      setContacts([]);
+    }
+    loadedForRef.current = currentId;
+  }, [user?.id]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');

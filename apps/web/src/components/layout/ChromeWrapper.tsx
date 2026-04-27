@@ -5,8 +5,18 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 
 const HIDE_NAV_ON = ['/sign-in', '/sign-up', '/sos'];
-const HIDE_FOOTER_ON = ['/sign-in', '/sign-up', '/sos', '/chat', '/dashboard', '/profile', '/onboard', '/grievance'];
-const FULL_BLEED = ['/dashboard', '/profile'];
+const HIDE_FOOTER_ON = [
+  '/sign-in',
+  '/sign-up',
+  '/sos',
+  '/chat',
+  '/dashboard',
+  '/profile',
+  '/onboard',
+  '/grievance',
+  '/local-issues',
+];
+const FULL_BLEED = ['/dashboard', '/profile', '/local-issues'];
 
 export function ChromeWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '/';

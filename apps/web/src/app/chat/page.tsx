@@ -32,6 +32,8 @@ export default function ChatPage() {
   const [phase, setPhase] = useState<Phase>('input');
   const [text, setText] = useState('');
   const [pin, setPin] = useState('');
+  const [locality, setLocality] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<IntentPreview | null>(null);
   const [sosSheet, setSosSheet] = useState(false);
@@ -51,7 +53,7 @@ export default function ChatPage() {
     setPhase('loading');
 
     try {
-      const result = await api.intentPreview({ text, pin });
+      const result = await api.intentPreview({ text, pin, locality: locality || undefined });
       setPreview(result);
       setPhase('preview');
 
@@ -68,7 +70,7 @@ export default function ChatPage() {
       setError(msg);
       setPhase('error');
     }
-  }, [text, pin, api]);
+  }, [text, pin, locality, api]);
 
   /* ── Confirm & file ────────────────────────────────────── */
   const handleConfirm = useCallback(async () => {
@@ -79,6 +81,8 @@ export default function ChatPage() {
       const grievance = await api.createGrievance({
         text,
         pin,
+        locality: locality || undefined,
+        isAnonymous,
         confirmedStatute: preview.statute,
         confirmedSection: preview.section,
         confirmedOfficerId: preview.officer.id,
@@ -140,41 +144,66 @@ export default function ChatPage() {
                     aria-label={s.title}
                   />
 
-                  <div className="mt-4 flex items-end gap-3">
-                    <div className="flex-1">
-                      <Input
-                        id="pin-code"
-                        label={s.pinLabel}
-                        placeholder={s.pinPlaceholder}
-                        value={pin}
-                        onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        maxLength={6}
-                        inputMode="numeric"
-                      />
-                    </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <Input
+                      id="pin-code"
+                      label={s.pinLabel}
+                      placeholder={s.pinPlaceholder}
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      maxLength={6}
+                      inputMode="numeric"
+                    />
+                    <Input
+                      id="locality"
+                      label="Locality / area"
+                      placeholder="e.g. Chandni Chowk"
+                      value={locality}
+                      onChange={(e) => setLocality(e.target.value)}
+                    />
+                  </div>
 
-                    {/* Voice button placeholder */}
+                  {/* Anonymous toggle */}
+                  <div className="mt-4 flex items-start gap-3 rounded-xl border border-line bg-canvas-2 p-4">
                     <button
-                      className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-line bg-canvas text-ink-muted transition-colors hover:border-line-strong hover:text-ink"
+                      type="button"
+                      role="switch"
+                      aria-checked={isAnonymous}
+                      onClick={() => setIsAnonymous((v) => !v)}
+                      className={`relative mt-0.5 inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${isAnonymous ? 'bg-brand-600' : 'bg-line'}`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${isAnonymous ? 'translate-x-4' : 'translate-x-0'}`}
+                      />
+                    </button>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-ink">File anonymously</p>
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        Your name, phone, and email will NOT appear in the notice to authorities. Your identity is stored securely for internal tracking only.
+                      </p>
+                      {isAnonymous && (
+                        <p className="mt-2 text-xs font-medium text-saffron-700 dark:text-saffron-300">
+                          ⚠ Anonymous complaints may have limited follow-up capability.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Voice button placeholder */}
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      className="flex h-9 items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-xs text-ink-muted transition-colors hover:border-line-strong hover:text-ink"
                       aria-label={s.voiceBtn}
                       title={s.voicePlaceholder}
                       type="button"
                     >
-                      <svg
-                        className="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                         <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                         <line x1="12" y1="19" x2="12" y2="23" />
                         <line x1="8" y1="23" x2="16" y2="23" />
                       </svg>
+                      Voice input coming soon
                     </button>
                   </div>
 

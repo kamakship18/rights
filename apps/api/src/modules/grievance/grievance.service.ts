@@ -8,6 +8,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma.service';
 import { AiService } from './ai.service';
+import { CommunityService } from '../community/community.service';
 import {
   IntentDto,
   CreateGrievanceDto,
@@ -21,6 +22,7 @@ export class GrievanceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
+    private readonly community: CommunityService,
     @InjectQueue('notice') private readonly noticeQueue: Queue,
   ) {}
 
@@ -78,8 +80,12 @@ export class GrievanceService {
     userId: string,
     opts?: { demoSpeed?: string | null },
   ): Promise<any> {
+    const categoryNorm = (dto.confirmedCategory || 'general')
+      .toLowerCase()
+      .trim() || 'general';
+
     // Ensure user exists (upsert for dev mode)
-    const user = await this.prisma.user.upsert({
+    let user = await this.prisma.user.upsert({
       where: { clerkId: userId },
       update: {},
       create: {
@@ -88,6 +94,14 @@ export class GrievanceService {
         primaryPin: dto.pin,
       },
     });
+
+    // So Local Issues can match clusters: set home PIN from filing when not set
+    if (!user.primaryPin) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { primaryPin: dto.pin },
+      });
+    }
 
     // Server-side re-resolution: never trust client values blindly
     // We use the confirmed values but verify the officer exists
@@ -109,15 +123,17 @@ export class GrievanceService {
         userId: user.id,
         rawText: dto.text,
         language: dto.lang || 'en',
-        category: dto.confirmedCategory,
+        category: categoryNorm,
         urgency: dto.confirmedUrgency,
         statute: dto.confirmedStatute,
         section: dto.confirmedSection,
         officerId: officer.id,
         status: 'PENDING',
         pin: dto.pin,
+        locality: dto.locality ?? null,
         lat: dto.lat,
         lng: dto.lng,
+        isAnonymous: dto.isAnonymous ?? false,
         demoSpeed: demo,
       },
       include: {
@@ -141,16 +157,25 @@ export class GrievanceService {
     );
 
     this.logger.log(
-      `Grievance created — id: ${grievance.id}, urgency: ${grievance.urgency}, status: PENDING`,
+      `Grievance created — id: ${grievance.id}, userId: ${user.id} clerkId: ${userId}, ` +
+        `pin: ${dto.pin} category: ${categoryNorm} — community clustering will run`,
     );
+
+    // Non-blocking community clustering check
+    void this.community.checkAndCluster(grievance.id);
 
     return grievance;
   }
 
   /**
    * Get a single grievance with its Chain-of-Action timeline.
+   * Always verifies the grievance belongs to the requesting user.
    */
   async findOne(id: string, userId: string): Promise<any> {
+    if (!userId || userId === 'anonymous') {
+      throw new NotFoundException(`Grievance ${id} not found`);
+    }
+
     const grievance = await this.prisma.grievance.findFirst({
       where: { id, user: { clerkId: userId } },
       include: {
@@ -164,18 +189,35 @@ export class GrievanceService {
       throw new NotFoundException(`Grievance ${id} not found`);
     }
 
+    // Extra ownership assertion — belt and suspenders
+    if (grievance.user?.clerkId !== userId) {
+      this.logger.error(
+        `SECURITY: findOne returned grievance owned by ${grievance.user?.clerkId} to clerkId ${userId}`,
+      );
+      throw new NotFoundException(`Grievance ${id} not found`);
+    }
+
     return grievance;
   }
 
   /**
    * List user's grievances with cursor pagination.
+   * Always scoped strictly to the requesting user's clerkId.
    */
   async findAll(userId: string, cursor?: string, take = 20): Promise<any> {
+    this.logger.log(`findAll — clerkId: ${userId}`);
+
+    // Strict ownership filter — NEVER query without a valid clerkId
+    if (!userId || userId === 'anonymous') {
+      this.logger.warn('findAll called without a valid userId — returning empty');
+      return { items: [], nextCursor: undefined, hasNext: false };
+    }
+
     const where = { user: { clerkId: userId } };
 
     const grievances = await this.prisma.grievance.findMany({
       where,
-      take: take + 1, // Fetch one extra to determine hasNext
+      take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: { createdAt: 'desc' },
       include: {
@@ -184,10 +226,36 @@ export class GrievanceService {
       },
     });
 
+    this.logger.log(`findAll — clerkId: ${userId} → ${grievances.length} row(s) returned`);
+
     const hasNext = grievances.length > take;
     const items = hasNext ? grievances.slice(0, take) : grievances;
     const nextCursor = hasNext ? items[items.length - 1]?.id : undefined;
 
     return { items, nextCursor, hasNext };
+  }
+
+  /**
+   * Add a user-authored update to the grievance timeline.
+   */
+  async addUpdate(id: string, userId: string, message: string): Promise<any> {
+    const grievance = await this.prisma.grievance.findFirst({
+      where: { id, user: { clerkId: userId } },
+    });
+
+    if (!grievance) {
+      throw new NotFoundException(`Grievance ${id} not found`);
+    }
+
+    return this.prisma.noticeEvent.create({
+      data: {
+        grievanceId: id,
+        kind: 'USER_UPDATE',
+        channel: 'SYSTEM',
+        source: 'USER',
+        message,
+        payload: { addedByClerkId: userId },
+      },
+    });
   }
 }

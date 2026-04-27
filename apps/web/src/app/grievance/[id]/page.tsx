@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
@@ -25,11 +25,13 @@ const REFRESH_INTERVAL = 10_000; // 10 s
 export default function GrievancePage() {
   const params = useParams<{ id: string }>();
   const { getToken } = useAuth();
-  const api = createApiClient(getToken);
+  const api = useMemo(() => createApiClient(getToken), [getToken]);
 
   const [grievance, setGrievance] = useState<GrievanceWithEvents | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [noteText, setNoteText] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
 
   const fetchGrievance = useCallback(async () => {
     try {
@@ -157,6 +159,39 @@ export default function GrievancePage() {
               </span>
             </div>
             <Timeline events={grievance.events} />
+
+            {/* Add user note */}
+            <div className="mt-4 rounded-2xl border border-line bg-card p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-soft">
+                Add a note
+              </p>
+              <textarea
+                className="h-20 w-full resize-none rounded-xl border border-line bg-canvas px-4 py-3 text-sm text-ink placeholder:text-ink-soft focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                placeholder="Add an update, new information, or context for authorities…"
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+              />
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  disabled={!noteText.trim() || noteSaving}
+                  onClick={async () => {
+                    if (!noteText.trim()) return;
+                    setNoteSaving(true);
+                    try {
+                      await api.addGrievanceUpdate(params.id, noteText.trim());
+                      setNoteText('');
+                      await fetchGrievance();
+                    } finally {
+                      setNoteSaving(false);
+                    }
+                  }}
+                  className="inline-flex h-9 items-center rounded-xl bg-ink px-4 text-xs font-medium text-canvas hover:opacity-90 disabled:opacity-50"
+                >
+                  {noteSaving ? 'Saving…' : 'Add note'}
+                </button>
+              </div>
+            </div>
           </motion.div>
         </div>
       </main>

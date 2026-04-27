@@ -17,6 +17,7 @@ import {
 import { Request } from 'express';
 import { GrievanceService } from './grievance.service';
 import { IntentDtoSchema, CreateGrievanceDtoSchema } from './grievance.dto';
+import { AddGrievanceUpdateDtoSchema } from '@repo/shared';
 
 @Controller('grievance')
 export class GrievanceController {
@@ -87,5 +88,24 @@ export class GrievanceController {
     const userId = req.userId || 'anonymous';
     const pageSize = take ? Math.min(parseInt(take, 10), 50) : 20;
     return this.service.findAll(userId, cursor, pageSize);
+  }
+
+  /**
+   * POST /grievance/:id/update
+   * Adds a user-authored note to the grievance timeline.
+   */
+  @Post(':id/update')
+  @HttpCode(HttpStatus.CREATED)
+  async addUpdate(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ): Promise<any> {
+    const parsed = AddGrievanceUpdateDtoSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const userId = req.userId || 'anonymous';
+    return this.service.addUpdate(id, userId, parsed.data.message);
   }
 }

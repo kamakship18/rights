@@ -1,18 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useAuth } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { ErrorBoundary } from '@/components/ui';
+import { createApiClient } from '@/lib/api';
 
 export default function ProfilePage() {
   const { isLoaded, isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
+  const api = useMemo(() => createApiClient(getToken), [getToken]);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [location, setLocation] = useState('');
+  const [primaryPin, setPrimaryPin] = useState('');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -29,6 +34,17 @@ export default function ProfilePage() {
     setPhone(metaPhone);
   }, [user]);
 
+  // Load DB profile fields (location + pin) separately
+  useEffect(() => {
+    if (!isSignedIn) return;
+    api.getProfile().then((p) => {
+      if (p.location) setLocation(p.location);
+      if (p.primaryPin) setPrimaryPin(p.primaryPin);
+      if (p.phone && !phone) setPhone(p.phone);
+    }).catch(() => { /* silent */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn]);
+
   const dirty =
     !!user &&
     (firstName !== (user.firstName ?? '') ||
@@ -40,10 +56,15 @@ export default function ProfilePage() {
 
   async function onSave() {
     if (!user) return;
+    if (primaryPin && !/^\d{6}$/.test(primaryPin)) {
+      setError('PIN code must be exactly 6 digits.');
+      return;
+    }
     setSaving(true);
     setError('');
     setSuccess('');
     try {
+      // Save name/phone to Clerk
       await user.update({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -51,6 +72,13 @@ export default function ProfilePage() {
           ...(user.unsafeMetadata ?? {}),
           phone: phone.trim(),
         },
+      });
+      // Save location/pin/phone to our DB
+      await api.updateProfile({
+        fullName: `${firstName.trim()} ${lastName.trim()}`.trim() || undefined,
+        phone: phone.trim() || undefined,
+        location: location.trim() || undefined,
+        primaryPin: primaryPin || undefined,
       });
       setSuccess('Profile updated.');
       setTimeout(() => setSuccess(''), 2500);
@@ -216,6 +244,24 @@ export default function ProfilePage() {
                 onChange={() => {}}
                 disabled
                 hint="Managed via your sign-in provider."
+              />
+              <div className="sm:col-span-2">
+                <Field
+                  id="location"
+                  label="Home locality / area"
+                  value={location}
+                  onChange={setLocation}
+                  placeholder="e.g. Chandni Chowk, New Delhi"
+                  hint="Used to match you with local community issues."
+                />
+              </div>
+              <Field
+                id="primaryPin"
+                label="PIN code"
+                value={primaryPin}
+                onChange={(v) => setPrimaryPin(v.replace(/\D/g, '').slice(0, 6))}
+                placeholder="110001"
+                hint="6-digit area PIN code."
               />
             </div>
 

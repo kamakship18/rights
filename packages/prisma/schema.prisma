@@ -33,6 +33,14 @@ enum EventKind {
   FOLLOWUP_7D
   ESCALATION_14D
   SOS_BROADCAST
+  USER_UPDATE
+  COMMUNITY_NOTICE
+}
+
+enum EventSource {
+  SYSTEM
+  OFFICER
+  USER
 }
 
 enum Channel {
@@ -45,16 +53,22 @@ enum Channel {
 // ─── Models ─────────────────────────────────────────────
 
 model User {
-  id         String             @id @default(cuid())
-  clerkId    String             @unique
-  fullName   String
-  primaryPin String?
-  contacts   EmergencyContact[]
-  grievances Grievance[]
+  id              String             @id @default(cuid())
+  clerkId         String             @unique
+  fullName        String
+  primaryPin      String?
+  /// E.164 phone, optional; used for SOS and profile
+  phone           String?
+  /// Free-text home locality / neighbourhood
+  location        String?
+  /// Whether the user has completed the onboarding modal
+  profileComplete Boolean            @default(false)
+  contacts        EmergencyContact[]
+  grievances      Grievance[]
   /// SOS broadcast records (no grievance row)
-  noticeEventsSos NoticeEvent[] @relation("SosUserNoticeEvents")
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
+  noticeEventsSos NoticeEvent[]      @relation("SosUserNoticeEvents")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 }
 
 model EmergencyContact {
@@ -86,47 +100,90 @@ model Officer {
 }
 
 model Grievance {
-  id         String          @id @default(cuid())
-  userId     String
-  rawText    String
-  language   String          @default("en")
-  category   String
-  urgency    Urgency
-  statute    String
-  section    String
-  officerId  String
-  status     GrievanceStatus @default(PENDING)
-  pin        String
-  lat        Float?
-  lng        Float?
-  filedAt    DateTime?
-  resolvedAt DateTime?
+  id           String          @id @default(cuid())
+  userId       String
+  rawText      String
+  language     String          @default("en")
+  category     String
+  urgency      Urgency
+  statute      String
+  section      String
+  officerId    String
+  status       GrievanceStatus @default(PENDING)
+  pin          String
+  /// Free-text locality within the PIN (e.g. "Chandni Chowk")
+  locality     String?
+  lat          Float?
+  lng          Float?
+  filedAt      DateTime?
+  resolvedAt   DateTime?
+  /// When true, sender identity is hidden from the authority email
+  isAnonymous  Boolean         @default(false)
   /// "fast" compresses 7d/7d+ delays in demos (X-Demo-Speed); otherwise null
-  demoSpeed  String?
-  events     NoticeEvent[]
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  officer    Officer         @relation(fields: [officerId], references: [id])
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  demoSpeed    String?
+  events       NoticeEvent[]
+  communityMemberships CommunityGrievanceMember[]
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  officer      Officer         @relation(fields: [officerId], references: [id])
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@index([userId, status])
   @@index([officerId])
   @@index([pin])
+  @@index([pin, category])
+  @@index([isAnonymous])
 }
 
 model NoticeEvent {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   /// Set when the event is tied to a notice lifecycle; null for standalone SOS
   grievanceId String?
   /// Set for SOS_BROADCAST when grievanceId is null
   userId      String?
   kind        EventKind
   channel     Channel
+  /// Who created this event (default SYSTEM)
+  source      EventSource @default(SYSTEM)
+  /// Human-readable message for USER_UPDATE events
+  message     String?
   payload     Json
-  sentAt      DateTime  @default(now())
-  user        User?     @relation("SosUserNoticeEvents", fields: [userId], references: [id], onDelete: Cascade)
-  grievance   Grievance? @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
+  sentAt      DateTime    @default(now())
+  user        User?       @relation("SosUserNoticeEvents", fields: [userId], references: [id], onDelete: Cascade)
+  grievance   Grievance?  @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
 
   @@index([grievanceId, kind])
   @@index([userId, kind])
+}
+
+/// A CommunityGrievance is auto-created when ≥5 similar complaints cluster
+/// in the same locality+category within 72 hours.
+model CommunityGrievance {
+  id          String                    @id @default(cuid())
+  pin         String
+  locality    String?
+  category    String
+  status      GrievanceStatus           @default(PENDING)
+  count       Int                       @default(0)
+  officerId   String?
+  emailSentAt DateTime?
+  members     CommunityGrievanceMember[]
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  @@index([pin, category])
+  @@index([status])
+}
+
+model CommunityGrievanceMember {
+  id                  String             @id @default(cuid())
+  communityGrievanceId String
+  grievanceId         String
+  community           CommunityGrievance @relation(fields: [communityGrievanceId], references: [id], onDelete: Cascade)
+  grievance           Grievance          @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
+  addedAt             DateTime           @default(now())
+
+  @@unique([communityGrievanceId, grievanceId])
+  @@index([communityGrievanceId])
+  @@index([grievanceId])
 }

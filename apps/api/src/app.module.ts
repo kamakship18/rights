@@ -11,6 +11,8 @@ import { GrievanceModule } from './modules/grievance/grievance.module';
 import { NoticeModule } from './modules/notice/notice.module';
 import { FilingModule } from './modules/filing/filing.module';
 import { SosModule } from './modules/sos/sos.module';
+import { CommunityModule } from './modules/community/community.module';
+import { ProfileModule } from './modules/profile/profile.module';
 import { PrismaService } from './prisma.service';
 
 /**
@@ -41,6 +43,8 @@ function parseRedisUrl() {
     NoticeModule,
     FilingModule,
     SosModule,
+    CommunityModule,
+    ProfileModule,
   ],
   controllers: [AppController],
   providers: [PrismaService],
