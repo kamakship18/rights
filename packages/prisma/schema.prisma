@@ -1,0 +1,132 @@
+// ──────────────────────────────────────────────────────
+// Actionable Justice OS — Prisma Schema
+// See docs/EXECUTION_PLAN.md §5 for the design rationale.
+// ──────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────
+
+enum Urgency {
+  CRITICAL
+  HIGH
+  NORMAL
+}
+
+enum GrievanceStatus {
+  PENDING
+  FILED
+  FOLLOWED_UP
+  ESCALATED
+  RESOLVED
+}
+
+enum EventKind {
+  FILED
+  FOLLOWUP_7D
+  ESCALATION_14D
+  SOS_BROADCAST
+}
+
+enum Channel {
+  EMAIL
+  SMS
+  WHATSAPP
+  SYSTEM
+}
+
+// ─── Models ─────────────────────────────────────────────
+
+model User {
+  id         String             @id @default(cuid())
+  clerkId    String             @unique
+  fullName   String
+  primaryPin String?
+  contacts   EmergencyContact[]
+  grievances Grievance[]
+  /// SOS broadcast records (no grievance row)
+  noticeEventsSos NoticeEvent[] @relation("SosUserNoticeEvents")
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+}
+
+model EmergencyContact {
+  id       String  @id @default(cuid())
+  userId   String
+  name     String
+  phone    String
+  relation String?
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Officer {
+  id              String      @id @default(cuid())
+  name            String
+  designation     String
+  department      String
+  jurisdictionPin String
+  email           String
+  parentId        String?
+  parent          Officer?    @relation("Hierarchy", fields: [parentId], references: [id])
+  children        Officer[]   @relation("Hierarchy")
+  grievances      Grievance[]
+  createdAt       DateTime    @default(now())
+
+  @@index([jurisdictionPin, department])
+  @@index([parentId])
+}
+
+model Grievance {
+  id         String          @id @default(cuid())
+  userId     String
+  rawText    String
+  language   String          @default("en")
+  category   String
+  urgency    Urgency
+  statute    String
+  section    String
+  officerId  String
+  status     GrievanceStatus @default(PENDING)
+  pin        String
+  lat        Float?
+  lng        Float?
+  filedAt    DateTime?
+  resolvedAt DateTime?
+  /// "fast" compresses 7d/7d+ delays in demos (X-Demo-Speed); otherwise null
+  demoSpeed  String?
+  events     NoticeEvent[]
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  officer    Officer         @relation(fields: [officerId], references: [id])
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([userId, status])
+  @@index([officerId])
+  @@index([pin])
+}
+
+model NoticeEvent {
+  id          String    @id @default(cuid())
+  /// Set when the event is tied to a notice lifecycle; null for standalone SOS
+  grievanceId String?
+  /// Set for SOS_BROADCAST when grievanceId is null
+  userId      String?
+  kind        EventKind
+  channel     Channel
+  payload     Json
+  sentAt      DateTime  @default(now())
+  user        User?     @relation("SosUserNoticeEvents", fields: [userId], references: [id], onDelete: Cascade)
+  grievance   Grievance? @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
+
+  @@index([grievanceId, kind])
+  @@index([userId, kind])
+}
