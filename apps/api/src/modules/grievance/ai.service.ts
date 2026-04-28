@@ -53,7 +53,7 @@ export class AiService {
 
   constructor() {
     const baseURL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
-    this.client = axios.create({ baseURL, timeout: 30_000 });
+    this.client = axios.create({ baseURL, timeout: 60_000 });
     this.logger.log(`AI service configured: ${baseURL}`);
   }
 

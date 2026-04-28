@@ -29,16 +29,55 @@ export class GrievanceService {
   /**
    * Preview: triage + statute + officer in parallel where possible.
    * triage runs first (category needed for statute + officer), then statute + officer in parallel.
+   * Both statute and officer calls are fault-tolerant — a timeout never crashes the preview.
    */
   async preview(dto: IntentDto, userId: string): Promise<IntentPreview> {
     // Step 1: Triage (need category for subsequent calls)
     const triage = await this.ai.triage(dto.text, dto.lang);
 
-    // Step 2: Statute + Officer in parallel
-    const [statute, officer] = await Promise.all([
+    // Step 2: Statute + Officer in parallel — use allSettled so a timeout on one never kills both
+    const [statuteResult, officerResult] = await Promise.allSettled([
       this.ai.mapStatute(dto.text, triage.category),
       this.ai.findOfficer(dto.pin, triage.category),
     ]);
+
+    const statute =
+      statuteResult.status === 'fulfilled'
+        ? statuteResult.value
+        : (() => {
+            this.logger.warn(
+              `mapStatute failed — ${(statuteResult.reason as Error)?.message ?? 'unknown'}. Using fallback.`,
+            );
+            return {
+              statute: 'Unable to determine statute',
+              section: 'Statute lookup timed out — please retry',
+              citations: [],
+              confidence: 0,
+              needs_lawyer_review: true,
+              reasoning: 'Statute service did not respond in time.',
+            };
+          })();
+
+    const officer =
+      officerResult.status === 'fulfilled'
+        ? officerResult.value
+        : (() => {
+            this.logger.warn(
+              `findOfficer failed — ${(officerResult.reason as Error)?.message ?? 'unknown'}. Using fallback.`,
+            );
+            return {
+              officer: {
+                id: 'not_found',
+                name: 'Unable to determine officer',
+                designation: 'N/A',
+                department: 'N/A',
+                jurisdiction_pin: dto.pin,
+                email: '',
+              },
+              parent: null,
+              source: 'error',
+            };
+          })();
 
     this.logger.log(
       `Preview generated — urgency: ${triage.urgency}, category: ${triage.category}, grievance_len: ${dto.text.length}`,
@@ -103,15 +142,33 @@ export class GrievanceService {
       });
     }
 
-    // Server-side re-resolution: never trust client values blindly
-    // We use the confirmed values but verify the officer exists
-    const officer = await this.prisma.officer.findUnique({
+    // Server-side re-resolution: verify officer exists, fall back gracefully
+    // when the AI returned a fake/placeholder ID (e.g. "not_found", "error")
+    let officer = await this.prisma.officer.findUnique({
       where: { id: dto.confirmedOfficerId },
     });
 
     if (!officer) {
+      this.logger.warn(
+        `Officer id="${dto.confirmedOfficerId}" not in DB — finding nearest for pin=${dto.pin}`,
+      );
+      // Try exact PIN match first
+      officer = await this.prisma.officer.findFirst({
+        where: { jurisdictionPin: dto.pin },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
+
+    if (!officer) {
+      // Widen to any officer: covers PINs outside the seeded dataset
+      officer = await this.prisma.officer.findFirst({
+        orderBy: { createdAt: 'asc' },
+      });
+    }
+
+    if (!officer) {
       throw new BadRequestException(
-        `Officer ${dto.confirmedOfficerId} not found — re-run /grievance/intent`,
+        'No officers available in the system — run pnpm db:seed first',
       );
     }
 

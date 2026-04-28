@@ -52,6 +52,29 @@ const items = [
     ),
   },
   {
+    href: '/blockchain',
+    label: 'Blockchain',
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="2" y="7" width="6" height="5" rx="1" />
+        <rect x="9" y="7" width="6" height="5" rx="1" />
+        <rect x="16" y="7" width="6" height="5" rx="1" />
+        <path d="M5 12v3M12 12v3M19 12v3" />
+        <path d="M3 15h18" />
+      </svg>
+    ),
+  },
+  {
+    href: '/performance',
+    label: 'Performance',
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 3v18h18" />
+        <path d="m7 16 4-4 4 4 4-4" />
+      </svg>
+    ),
+  },
+  {
     href: '/onboard',
     label: 'Settings',
     icon: (

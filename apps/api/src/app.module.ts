@@ -3,7 +3,7 @@
  *
  * Wires all feature modules, BullMQ, Clerk auth, and the SOS gateway.
  */
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { AppController } from './app.controller';
 import { ClerkAuthMiddleware } from './modules/auth/auth.module';
@@ -12,8 +12,9 @@ import { NoticeModule } from './modules/notice/notice.module';
 import { FilingModule } from './modules/filing/filing.module';
 import { SosModule } from './modules/sos/sos.module';
 import { CommunityModule } from './modules/community/community.module';
-import { ProfileModule } from './modules/profile/profile.module';
-import { PrismaService } from './prisma.service';
+import { ProfileModule }      from './modules/profile/profile.module';
+import { PerformanceModule }  from './modules/performance/performance.module';
+import { PrismaService }      from './prisma.service';
 
 /**
  * Parse REDIS_URL into IORedis-compatible connection options.
@@ -45,12 +46,19 @@ function parseRedisUrl() {
     SosModule,
     CommunityModule,
     ProfileModule,
+    PerformanceModule,
   ],
   controllers: [AppController],
   providers: [PrismaService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(ClerkAuthMiddleware).forRoutes('*');
+    consumer
+      .apply(ClerkAuthMiddleware)
+      .exclude(
+        { path: 'healthz',     method: RequestMethod.GET },
+        { path: 'performance', method: RequestMethod.GET },
+      )
+      .forRoutes('*');
   }
 }

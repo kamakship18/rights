@@ -11,7 +11,7 @@
     "clean": "rm -rf .next out"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.12.0",
+    "@clerk/nextjs": "6.12.0",
     "@clerk/themes": "^2.4.57",
     "@repo/shared": "workspace:*",
     "framer-motion": "^11.18.0",

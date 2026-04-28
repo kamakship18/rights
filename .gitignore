@@ -1,33 +1,35 @@
-# Dependencies
+# ── Dependencies ───────────────────────────────────────────
 node_modules/
 .pnpm-store/
 
-# Build outputs
+# ── Build outputs ───────────────────────────────────────────
 dist/
 build/
 .next/
 out/
+*.tsbuildinfo
 
-# Environment
+# ── Environment — ALL env files, no exceptions ─────────────
 .env
+.env.*
+*.env
+*.env.*
 .env.local
-.env.*.local
+.env.example
+packages/prisma/.env
 
-# IDE
+# ── IDE / Editor ────────────────────────────────────────────
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# OS
+# ── OS ─────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Prisma
-packages/prisma/.env
-
-# Python
+# ── Python ──────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -35,26 +37,28 @@ __pycache__/
 venv/
 *.egg-info/
 .mypy_cache/
+.ruff_cache/
+.pytest_cache/
 
-# Logs
+# ── Logs ────────────────────────────────────────────────────
 *.log
 npm-debug.log*
 pnpm-debug.log*
 
-# Testing
+# ── Test coverage ────────────────────────────────────────────
 coverage/
 .nyc_output/
 
-# Turbo
+# ── Turbo ───────────────────────────────────────────────────
 .turbo/
 
-# Misc
-*.tsbuildinfo
-
-# Ingest cache (raw CSVs, scraped HTML)
+# ── AI service cache ────────────────────────────────────────
 apps/ai/ingest/cache/
 *.csv
 
-# Python tool caches
-.ruff_cache/
-.pytest_cache/
+# ── Chain service — local runtime data ──────────────────────
+# Each developer gets their own local chain; never commit it
+apps/chain/data/ledger.json
+apps/chain/uploads/*
+!apps/chain/uploads/.gitkeep
+apps/chain/node_modules/

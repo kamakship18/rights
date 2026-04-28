@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { ErrorBoundary } from '@/components/ui';
 import { createApiClient, type GrievanceListItem } from '@/lib/api';
 import { strings } from '@/lib/strings';
+import { PerformanceWidget } from '@/features/performance/components/PerformanceWidget';
 
 const sg = strings.grievance;
 
@@ -168,7 +169,9 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Body */}
+          {/* Body — grievance list + sidebar widget */}
+          <div className="flex gap-6 items-start">
+            <div className="min-w-0 flex-1">
           {!isLoaded || loading ? (
             <SkeletonList />
           ) : !isSignedIn ? (
@@ -253,6 +256,13 @@ export default function DashboardPage() {
               ))}
             </ul>
           )}
+            </div>
+
+            {/* Performance widget — visible on xl screens */}
+            <aside className="hidden xl:block w-72 shrink-0">
+              <PerformanceWidget />
+            </aside>
+          </div>
         </div>
       </main>
     </ErrorBoundary>

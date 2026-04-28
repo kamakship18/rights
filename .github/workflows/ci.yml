@@ -43,6 +43,30 @@ jobs:
       - name: Build
         run: pnpm build
 
+  chain-check:
+    name: Chain Service Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: apps/chain/package-lock.json
+
+      - name: Install chain dependencies
+        working-directory: apps/chain
+        run: npm ci
+
+      - name: Syntax check chain service
+        working-directory: apps/chain
+        run: node --check src/main.js && node --check src/modules/grievance-chain/blockchain/blockchain.js && node --check src/modules/grievance-chain/service/grievance.service.js
+
   ai-lint:
     name: AI Service Lint
     runs-on: ubuntu-latest

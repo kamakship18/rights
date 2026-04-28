@@ -10,7 +10,8 @@
     "experimentalDecorators": true,
     "declaration": true,
     "composite": false,
-    "incremental": false
+    "incremental": false,
+    "typeRoots": ["./node_modules/@types", "../../node_modules/@types"]
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist", "test"]

@@ -2,21 +2,23 @@
   "name": "@repo/prisma",
   "version": "0.0.1",
   "private": true,
-  "main": "./src/client.ts",
-  "types": "./src/client.ts",
+  "main": "./dist/src/client.js",
+  "types": "./dist/src/client.d.ts",
   "exports": {
     ".": {
-      "types": "./src/client.ts",
-      "default": "./src/client.ts"
+      "types": "./dist/src/client.d.ts",
+      "default": "./dist/src/client.js"
     }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "migrate:reset": "prisma migrate reset",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "db:seed:perf": "tsx performance-seed.ts",
     "studio": "prisma studio",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",

@@ -7,10 +7,11 @@
     "pnpm": ">=9"
   },
   "scripts": {
-    "dev": "pnpm --filter @repo/shared run build && pnpm --filter './apps/*' --parallel run dev",
+    "dev": "pnpm --filter @repo/prisma run build && pnpm --filter @repo/shared run build && pnpm --filter './apps/*' --parallel run dev",
     "dev:web": "pnpm --filter @repo/web dev",
     "dev:api": "pnpm --filter @repo/api dev",
     "dev:worker": "pnpm --filter @repo/worker dev",
+    "dev:chain": "cd apps/chain && node src/main.js",
     "build": "pnpm --filter './apps/*' --filter './packages/*' run build",
     "lint": "pnpm -r run lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
@@ -24,6 +25,7 @@
     "db:migrate:deploy": "pnpm --filter @repo/prisma migrate:deploy",
     "db:push": "pnpm --filter @repo/prisma db:push",
     "db:seed": "pnpm --filter @repo/prisma db:seed",
+    "db:seed:perf": "pnpm --filter @repo/prisma db:seed:perf",
     "db:studio": "pnpm --filter @repo/prisma studio"
   },
   "devDependencies": {

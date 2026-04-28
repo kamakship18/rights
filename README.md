@@ -1,126 +1,55 @@
 # Actionable Justice OS
 
-> **Execution-First** legal redressal infrastructure — from SOS to autonomous follow-ups.
+> Rights exist. Access doesn't. We're fixing that.
+
+An AI-powered legal redressal platform that takes a citizen from *"I have a problem"* to *"The right authority is already being held accountable"* — automatically, in under 60 seconds.
 
 **Team Maverick** · Kamakshi & Chirag
 
 ---
 
-## Architecture
+## The Problem
 
-| Layer | Name         | Purpose                      | Headline Feature    |
-|------:|-------------|------------------------------|---------------------|
-|     0 | Urgency      | Life-safety triage           | **Pulse SOS**       |
-|     1 | Intelligence | NL → Statute → Authority     | **Statute Guard**   |
-|     2 | Execution    | Filing without manual effort | **Direct-File**     |
-|     3 | Persistence  | Accountability loop          | **Persistence Bot** |
+Most grievance systems are black holes. You file. You wait. Nothing happens. Authorities face zero consequences for ignoring complaints. Citizens have no way to escalate, no legal language, and no proof.
 
-**New to the repo?** Read the full handoff for architecture, envs, and what is real vs. dev-only: [docs/COLLABORATOR_CONTEXT.md](docs/COLLABORATOR_CONTEXT.md).
+---
+
+## What We Built
+
+### 🚨 Pulse SOS
+One-tap emergency mode. Finds the 3 nearest police stations and hospitals instantly via Google Places, broadcasts your live GPS to saved emergency contacts over WhatsApp/SMS, and opens a direct 112 dial link. No forms. No delays.
+
+### 🤖 AI Grievance Intake
+Type or speak your complaint in plain language. The AI triages it, maps it to the exact Indian law (BNS, Noise Pollution Rules, Electricity Act, Consumer Protection Act, and more) using a RAG pipeline — not hallucinations — and identifies the correct nodal officer for your PIN code.
+
+### 📄 Direct Filing
+One confirmation tap sends a formal legal notice directly to the responsible authority's inbox. No lawyers. No RTI expertise needed. The system writes it, signs it with your identity, and delivers it.
+
+### 🔁 Persistence Bot
+The system never lets go. If your grievance isn't resolved in 7 days, it automatically resends. At 14 days, it escalates to the parent authority and CCs them. Every action is logged in a visible Chain of Action timeline.
+
+### ⛓️ Blockchain Evidence Layer
+Every grievance can be filed immutably on a custom SHA-256 blockchain ledger. Append-only, tamper-evident, court-ready. If the blockchain write fails, it falls back to MongoDB automatically. Full proof bundle available for download at any time.
+
+### 📊 Performance & Accountability Dashboard
+A fully public leaderboard ranking every nodal officer and region by grievance resolution rate. Star ratings, progress bars, top vs. lowest performing regions — all live from the database. Designed to create transparency and healthy competition among authorities.
+
+### 🌐 Local Issues Feed
+When 5 or more similar complaints cluster in the same locality within 72 hours, they auto-group into a community grievance. Citizens can see they're not alone — and authorities can't ignore a pattern.
+
+---
 
 ## Tech Stack
 
-- **Web**: Next.js 14 (App Router) + TypeScript + Tailwind CSS + Framer Motion
-- **API**: NestJS + Socket.io + BullMQ
-- **Worker**: NestJS standalone + BullMQ consumer + node-cron
-- **AI**: FastAPI + LangChain (RAG pipeline)
-- **DB**: PostgreSQL (Prisma ORM) + Redis + Pinecone
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 14 · TypeScript · Tailwind CSS · Framer Motion · Clerk |
+| API | NestJS · BullMQ · Socket.io · Prisma |
+| Worker | NestJS · node-cron · SendGrid |
+| AI | FastAPI · LangChain · Groq · Pinecone |
+| Blockchain | Express.js · Node crypto (SHA-256) · MongoDB |
+| Database | PostgreSQL · Redis · Pinecone |
 
-## Quick Start (Local)
+---
 
-### Prerequisites
-
-- Node.js 20+ (`nvm use` will read `.nvmrc`)
-- pnpm 9+ (`corepack enable && corepack prepare pnpm@9.15.4 --activate`)
-- Docker & Docker Compose
-- Python 3.12+ with [uv](https://docs.astral.sh/uv/)
-
-### 1. Clone & Install
-
-```bash
-git clone <your-repo-url>
-cd actionable-justice-os
-pnpm install
-```
-
-### 2. Start Infrastructure
-
-```bash
-pnpm docker:up
-# Starts PostgreSQL 16 on :5432 and Redis 7 on :6379
-```
-
-### 3. Setup Environment
-
-```bash
-cp packages/prisma/.env.example packages/prisma/.env
-# Edit .env if your Docker ports differ
-```
-
-### 4. Start All Services
-
-```bash
-# Terminal 1 — Node.js apps
-pnpm dev
-
-# Terminal 2 — AI service
-cd apps/ai
-uv run uvicorn main:app --reload --port 8000
-```
-
-### 5. Verify Health Checks
-
-```bash
-curl http://localhost:3000/healthz   # web
-curl http://localhost:4000/healthz   # api
-curl http://localhost:4001/healthz   # worker
-curl http://localhost:8000/healthz   # ai
-```
-
-All should return `{ "ok": true, "service": "<name>" }`.
-
-## Project Structure
-
-```
-├── apps/
-│   ├── web/        # Next.js 14 frontend
-│   ├── api/        # NestJS orchestrator API
-│   ├── worker/     # Background jobs + cron
-│   └── ai/         # FastAPI RAG service
-├── packages/
-│   ├── shared/     # TS types + zod schemas
-│   └── prisma/     # Prisma schema + migrations
-├── infra/
-│   ├── docker-compose.yml  # Local Postgres + Redis
-│   └── render.yaml         # Cloud deploy (Phase C)
-├── docs/
-│   ├── EXECUTION_PLAN.md
-│   └── CURSOR_PROMPTS.md
-└── .github/workflows/ci.yml
-```
-
-## Scripts
-
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start all Node.js apps in parallel |
-| `pnpm build` | Build all packages and apps |
-| `pnpm lint` | Lint all packages |
-| `pnpm format` | Format all files with Prettier |
-| `pnpm typecheck` | Type-check all TS packages |
-| `pnpm docker:up` | Start local Postgres + Redis |
-| `pnpm docker:down` | Stop local infrastructure |
-| `pnpm db:generate` | Generate Prisma client |
-| `pnpm db:push` | Push schema to database |
-| `pnpm db:seed` | Seed database |
-
-## Deployment
-
-See [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md) §2.1 for the local → cloud phasing.
-
-- **Web** → Vercel
-- **API / Worker / AI** → Render
-- **Database** → Neon (Postgres) + Upstash (Redis) + Pinecone (Vector)
-
-## License
-
-Private — Hackathon project.
+*Built for impact. Every grievance deserves to be heard — and followed up on.*
